@@ -1,0 +1,6 @@
+ultralytics>=8.3.0
+opencv-python>=4.9.0
+matplotlib>=3.8.0
+numpy>=1.26.0
+Pillow>=10.0.0
+PyYAML>=6.0.1
