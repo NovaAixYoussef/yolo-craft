@@ -257,6 +257,18 @@ Test a single image. The window stays open until you press a key:
 python -m yolo_craft test --weights models/best.pt --source path/to/image.jpg
 ```
 
+The startup output lists the classes in the checkpoint. A model only detects the classes it was trained on. For small objects or weak detections, increase the inference size and enable test-time augmentation:
+
+```bash
+python -m yolo_craft test --weights models/best.pt --source path/to/image.jpg --conf 0.1 --imgsz 1024 --augment
+```
+
+Save the annotated result as an image:
+
+```bash
+python -m yolo_craft test --weights models/best.pt --source path/to/image.jpg --save outputs/annotated.jpg
+```
+
 Save an annotated video:
 
 ```bash

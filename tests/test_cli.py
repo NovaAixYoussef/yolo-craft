@@ -30,5 +30,13 @@ def test_cli_label_defaults():
     assert args.command == "label"
 
 
+def test_cli_test_defaults():
+    parser = build_parser()
+    args = parser.parse_args(["test", "--source", "image.jpg"])
+    assert args.imgsz == 640
+    assert args.conf == 0.25
+    assert args.augment is False
+
+
 def test_version_value():
     assert __version__ == "1.0.0"
