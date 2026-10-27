@@ -127,7 +127,7 @@ The `data/`, `models/`, and `outputs/` directories keep their `.gitkeep` files w
 | `capture` | Capture uncertain frames from a webcam, video, or stream |
 | `label` | Draw boxes, assign classes, and split the dataset |
 | `train` | Fine-tune a YOLO checkpoint |
-| `test` | Run a trained model on a webcam, video, or stream |
+| `test` | Run a trained model on a webcam, video, image, or stream |
 | `active` | Capture hard frames, label them, and rebuild the dataset |
 | `augment` | Preview YOLO-style training augmentations |
 | `export` | Build deployment artifacts |
@@ -250,6 +250,12 @@ python -m yolo_craft test --weights models/yolov8n.pt --conf 0.25 --source 0
 ```
 
 The baseline weights are downloaded automatically when they are missing.
+
+Test a single image. The window stays open until you press a key:
+
+```bash
+python -m yolo_craft test --weights models/best.pt --source path/to/image.jpg
+```
 
 Save an annotated video:
 

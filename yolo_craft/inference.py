@@ -9,6 +9,7 @@ from .common import (
     MODELS_DIR,
     TRAIN_DIR,
     ensure_runtime_dirs,
+    is_image_file,
     is_video_file,
     parse_source,
     resolve_existing,
@@ -19,7 +20,7 @@ from .common import (
 def add_parser(subparsers):
     parser = subparsers.add_parser(
         "test",
-        help="Run a trained YOLO model on a webcam, video, or stream.",
+        help="Run a trained YOLO model on a webcam, video, image, or stream.",
     )
     parser.add_argument(
         "--weights",
@@ -56,6 +57,7 @@ def run(args):
         return 1
 
     source = parse_source(args.source)
+    image_source = is_image_file(source)
     print(f"Loading model: {weights}")
     print(f"Source: {source_label(source)}")
     model = YOLO(str(weights))
@@ -72,6 +74,9 @@ def run(args):
         if not save_path.suffix:
             save_path = save_path.with_suffix(".mp4")
         save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if image_source:
+        print("Press any key in the window to close it.")
 
     frame_index = 0
     started = time.monotonic()
@@ -101,13 +106,15 @@ def run(args):
             boxes = result.boxes
             count = 0 if boxes is None else len(boxes)
             top = 0.0 if count == 0 else float(boxes.conf.max().item())
-            elapsed = max(time.monotonic() - started, 1e-6)
-            fps = frame_index / elapsed
-
-            status = (
-                f"Objects {count} | Top {top:.2f} | FPS {fps:.1f} | "
-                f"Frame {frame_index}"
-            )
+            if image_source:
+                status = f"Objects {count} | Top {top:.2f}"
+            else:
+                elapsed = max(time.monotonic() - started, 1e-6)
+                fps = frame_index / elapsed
+                status = (
+                    f"Objects {count} | Top {top:.2f} | FPS {fps:.1f} | "
+                    f"Frame {frame_index}"
+                )
             cv2.rectangle(
                 annotated,
                 (0, 0),
@@ -150,8 +157,10 @@ def run(args):
                     writer.write(annotated)
 
             cv2.imshow(args.window, annotated)
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord("q"):
+            key = cv2.waitKey(0 if image_source else 1) & 0xFF
+            if key in (ord("q"), 27):
+                break
+            if image_source:
                 break
             if cv2.getWindowProperty(args.window, cv2.WND_PROP_VISIBLE) < 1:
                 break

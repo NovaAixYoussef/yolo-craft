@@ -35,6 +35,13 @@ def is_video_file(source):
     return isinstance(source, str) and not is_stream(source)
 
 
+def is_image_file(source):
+    if not isinstance(source, str):
+        return False
+    path = Path(source)
+    return path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES
+
+
 def source_label(source):
     if isinstance(source, int):
         return f"webcam {source}"

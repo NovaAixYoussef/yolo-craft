@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from yolo_craft.common import (
+    is_image_file,
     is_stream,
     is_video_file,
     next_capture_path,
@@ -23,6 +24,15 @@ def test_stream_and_video_detection():
     assert not is_stream("clip.mp4")
     assert is_video_file("clip.mp4")
     assert not is_video_file(0)
+
+
+def test_image_file_detection(tmp_path):
+    image = tmp_path / "photo.JPG"
+    image.write_bytes(b"image")
+    assert is_image_file(str(image))
+    assert not is_image_file(str(tmp_path / "clip.mp4"))
+    assert not is_image_file(str(tmp_path / "missing.jpg"))
+    assert not is_image_file(0)
 
 
 def test_source_label():
