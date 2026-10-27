@@ -98,9 +98,9 @@ def run(args):
                 print("Source finished or disconnected.")
                 break
 
-            frame_index += 1
-            if args.max_frames > 0 and frame_index > args.max_frames:
+            if args.max_frames > 0 and frame_index >= args.max_frames:
                 break
+            frame_index += 1
 
             results = model.predict(frame, conf=args.conf, verbose=False)
             result = results[0]

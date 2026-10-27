@@ -249,7 +249,7 @@ The test command uses `outputs/runs/train/weights/best.pt` by default. Run the b
 python -m yolo_craft test --weights models/yolov8n.pt --conf 0.25 --source 0
 ```
 
-The baseline weights are downloaded automatically when they are missing.
+If `models/yolov8n.pt` is missing, place it there or pass any existing checkpoint with `--weights`. The training command downloads it automatically when needed.
 
 Test a single image. The window stays open until you press a key:
 
