@@ -36,6 +36,48 @@ def test_cli_test_defaults():
     assert args.imgsz == 640
     assert args.conf == 0.25
     assert args.augment is False
+    assert args.classes is None
+    assert args.device == ""
+    assert args.save_txt is None
+    assert args.save_json is None
+    assert args.no_labels is False
+    assert args.no_conf is False
+    assert args.line_width is None
+    assert args.no_display is False
+
+
+def test_cli_train_hyperparameters():
+    parser = build_parser()
+    args = parser.parse_args(["train"])
+    assert args.cos_lr is True
+    assert args.close_mosaic == 10
+    assert args.box == 7.5
+    assert args.cls == 0.5
+    assert args.fliplr == 0.5
+    assert args.mosaic == 1.0
+
+    custom = parser.parse_args(
+        [
+            "train",
+            "--no-cos-lr",
+            "--close-mosaic",
+            "4",
+            "--box",
+            "6.5",
+            "--cls",
+            "0.9",
+            "--fliplr",
+            "0.1",
+            "--mosaic",
+            "0.4",
+        ]
+    )
+    assert custom.cos_lr is False
+    assert custom.close_mosaic == 4
+    assert custom.box == 6.5
+    assert custom.cls == 0.9
+    assert custom.fliplr == 0.1
+    assert custom.mosaic == 0.4
 
 
 def test_version_value():

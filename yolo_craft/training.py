@@ -1,3 +1,4 @@
+import argparse
 import shutil
 from pathlib import Path
 
@@ -35,6 +36,12 @@ def train_model(
     project=None,
     name="train",
     seed=42,
+    cos_lr=True,
+    close_mosaic=10,
+    box=7.5,
+    cls=0.5,
+    fliplr=0.5,
+    mosaic=1.0,
 ):
     ensure_runtime_dirs()
     data_path = Path(data_path) if data_path else DATA_YAML
@@ -48,6 +55,12 @@ def train_model(
     print(f"Image size: {imgsz}")
     print(f"Batch size: {batch}")
     print(f"Early-stopping patience: {patience}")
+    print(f"Cosine learning rate: {cos_lr}")
+    print(f"Close mosaic epochs: {close_mosaic}")
+    print(f"Box loss gain: {box}")
+    print(f"Class loss gain: {cls}")
+    print(f"Horizontal flip: {fliplr}")
+    print(f"Mosaic: {mosaic}")
     print(f"Output: {Path(project) / name}")
 
     if not data_path.exists():
@@ -70,12 +83,12 @@ def train_model(
         project=project,
         name=name,
         seed=seed,
-        cos_lr=True,
-        close_mosaic=10,
-        box=7.5,
-        cls=0.5,
-        fliplr=0.5,
-        mosaic=1.0,
+        cos_lr=cos_lr,
+        close_mosaic=close_mosaic,
+        box=box,
+        cls=cls,
+        fliplr=fliplr,
+        mosaic=mosaic,
     )
     print("Training completed.")
     return results
@@ -96,6 +109,17 @@ def add_parser(subparsers):
     parser.add_argument("--project", default=str(RUNS_DIR))
     parser.add_argument("--name", default="train")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--cos-lr",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Use a cosine learning-rate schedule.",
+    )
+    parser.add_argument("--close-mosaic", type=int, default=10)
+    parser.add_argument("--box", type=float, default=7.5)
+    parser.add_argument("--cls", type=float, default=0.5)
+    parser.add_argument("--fliplr", type=float, default=0.5)
+    parser.add_argument("--mosaic", type=float, default=1.0)
     parser.set_defaults(func=run)
     return parser
 
@@ -112,5 +136,11 @@ def run(args):
         project=args.project,
         name=args.name,
         seed=args.seed,
+        cos_lr=args.cos_lr,
+        close_mosaic=args.close_mosaic,
+        box=args.box,
+        cls=args.cls,
+        fliplr=args.fliplr,
+        mosaic=args.mosaic,
     )
     return 0 if result is not None else 1

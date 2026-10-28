@@ -20,8 +20,8 @@ The repository ships without runtime data. Source code, tests, documentation, an
 - One command-line entry point: `python -m yolo_craft`
 - Active-learning loop from webcam, video file, or RTSP/HTTP stream
 - Multi-class labeling with class cycling, undo, background frames, and dataset splitting
-- YOLO training with sensible augmentation and early-stopping defaults
-- Live inference with confidence, IoU, FPS, and optional video recording
+- YOLO training with tunable loss, schedule, and augmentation parameters
+- Live inference with class filters, confidence, IoU, FPS, folder batches, and JSON/TXT exports
 - Real-time augmentation preview using YOLO-style letterboxing, mosaic, scaling, color shifts, and flips
 - Export to ONNX, TFLite, CoreML, and TensorRT engine
 - Training-curve plots and a generated `REPORT.md`
@@ -127,7 +127,7 @@ The `data/`, `models/`, and `outputs/` directories keep their `.gitkeep` files w
 | `capture` | Capture uncertain frames from a webcam, video, or stream |
 | `label` | Draw boxes, assign classes, and split the dataset |
 | `train` | Fine-tune a YOLO checkpoint |
-| `test` | Run a trained model on a webcam, video, image, or stream |
+| `test` | Run a trained model on a webcam, video, image, folder, or stream |
 | `active` | Capture hard frames, label them, and rebuild the dataset |
 | `augment` | Preview YOLO-style training augmentations |
 | `export` | Build deployment artifacts |
@@ -181,7 +181,7 @@ python -m yolo_craft label
 Existing class names are loaded from `data/dataset/data.yaml`. To start a new multi-class dataset, override them explicitly:
 
 ```bash
-python -m yolo_craft label --classes "leaf,stem"
+python -m yolo_craft label --classes "Parfum"
 ```
 
 Labeling controls:
@@ -229,6 +229,21 @@ Useful overrides:
 python -m yolo_craft train --epochs 150 --imgsz 640 --batch 8 --device 0
 ```
 
+Loss, schedule, and augmentation settings are available as CLI options:
+
+| Option | Default | Purpose |
+| --- | --- | --- |
+| `--cos-lr` / `--no-cos-lr` | enabled | Cosine learning-rate schedule |
+| `--close-mosaic` | `10` | Disable mosaic for the final epochs |
+| `--box` | `7.5` | Box loss gain |
+| `--cls` | `0.5` | Class loss gain |
+| `--fliplr` | `0.5` | Horizontal flip probability |
+| `--mosaic` | `1.0` | Mosaic augmentation probability |
+
+```bash
+python -m yolo_craft train --epochs 150 --device 0 --no-cos-lr --close-mosaic 15 --box 6.0 --cls 0.7 --fliplr 0.3 --mosaic 0.8
+```
+
 If the baseline checkpoint is missing, the training command downloads `yolov8n.pt` into `models/`.
 
 Place a custom checkpoint in `models/` and pass it explicitly:
@@ -249,7 +264,7 @@ The test command uses `outputs/runs/train/weights/best.pt` by default. Run the b
 python -m yolo_craft test --weights models/yolov8n.pt --conf 0.25 --source 0
 ```
 
-If `models/yolov8n.pt` is missing, place it there or pass any existing checkpoint with `--weights`. The training command downloads it automatically when needed.
+The baseline weights are downloaded automatically when they are missing.
 
 Test a single image. The window stays open until you press a key:
 
@@ -257,7 +272,7 @@ Test a single image. The window stays open until you press a key:
 python -m yolo_craft test --weights models/best.pt --source path/to/image.jpg
 ```
 
-The startup output lists the classes in the checkpoint. A model only detects the classes it was trained on. For small objects or weak detections, increase the inference size and enable test-time augmentation:
+The startup output lists the classes in the checkpoint. A model only detects the classes it was trained on. Use the same `--imgsz` value that was used for training; a checkpoint trained at `320` can lose confidence when tested at `640`. For small objects or weak detections, increase the inference size and enable test-time augmentation:
 
 ```bash
 python -m yolo_craft test --weights models/best.pt --source path/to/image.jpg --conf 0.1 --imgsz 1024 --augment
@@ -274,6 +289,21 @@ Save an annotated video:
 ```bash
 python -m yolo_craft test --source input.mp4 --save outputs/annotated.mp4
 ```
+
+Keep only selected classes by name or ID:
+
+```bash
+python -m yolo_craft test --source 0 --classes "Parfum,Bottle"
+python -m yolo_craft test --source image.jpg --classes 0,2
+```
+
+Run a whole image folder without opening windows and export the results:
+
+```bash
+python -m yolo_craft test --weights models/best.pt --source data/raw --save outputs/annotated --save-txt outputs/labels --save-json outputs/detections.json --no-display
+```
+
+Annotated folder images are written as `<name>_pred.<ext>`. YOLO labels contain normalized `class x y width height` rows. The JSON file records every processed frame with class names, confidence values, and pixel boxes. Use `--no-labels`, `--no-conf`, and `--line-width` to control the annotation style, and `--device cpu` or `--device 0` to choose the inference device.
 
 ### 5. Run the active-learning loop
 
@@ -460,7 +490,7 @@ Run a syntax check:
 python -m compileall -q yolo_craft tests
 ```
 
-The suite covers source parsing, capture filenames, label splitting, dataset YAML generation, augmentation geometry, CSV parsing, report generation, archiving, CLI wiring, and export artifact copying.
+The suite covers source parsing, capture filenames, label splitting, dataset YAML generation, training parameter forwarding, inference class filters, folder batches, JSON/TXT detection exports, augmentation geometry, CSV parsing, report generation, archiving, CLI wiring, and export artifact copying.
 
 ## Configuration notes
 
