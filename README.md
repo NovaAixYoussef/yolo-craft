@@ -1,4 +1,8 @@
 <p align="center">
+  <img src="assets/yolo_craft_pipeline.png" alt="YOLO CRAFT pipeline" width="420">
+</p>
+
+<p align="center">
   <img src="assets/logo.jpg" alt="YOLO CRAFT logo" width="360">
 </p>
 
