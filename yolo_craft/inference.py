@@ -21,6 +21,7 @@ from .common import (
     source_label,
     write_image,
 )
+from .labeling import compute_display_scale
 
 
 class ImageCapture:
@@ -45,6 +46,21 @@ class ImageCapture:
 
     def release(self):
         return None
+
+
+def display_frame(frame):
+    height, width = frame.shape[:2]
+    scale = compute_display_scale(width, height, 0)
+    display_width = max(1, int(round(width * scale)))
+    display_height = max(1, int(round(height * scale)))
+    if display_width == width and display_height == height:
+        return frame
+    interpolation = cv2.INTER_AREA if scale < 1.0 else cv2.INTER_LINEAR
+    return cv2.resize(
+        frame,
+        (display_width, display_height),
+        interpolation=interpolation,
+    )
 
 
 def sequence_values(value):
@@ -477,7 +493,7 @@ def run(args):
                 )
 
                 if not args.no_display:
-                    cv2.imshow(args.window, annotated)
+                    cv2.imshow(args.window, display_frame(annotated))
                     key = cv2.waitKey(1) & 0xFF
                     if key in (ord("q"), 27):
                         break
@@ -559,7 +575,7 @@ def run(args):
                     print(detection_message(records, args.conf))
 
                 if not args.no_display:
-                    cv2.imshow(args.window, annotated)
+                    cv2.imshow(args.window, display_frame(annotated))
                     key = cv2.waitKey(0 if image_source else 1) & 0xFF
                     if key in (ord("q"), 27):
                         break

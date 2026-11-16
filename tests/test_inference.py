@@ -277,6 +277,30 @@ def test_run_single_image_uses_image_reader(tmp_path, monkeypatch):
     assert payload["frames"][0]["detections"][0]["class"] == "Parfum"
 
 
+def test_display_frame_scales_small_images(monkeypatch):
+    image = np.zeros((28, 28, 3), dtype=np.uint8)
+    monkeypatch.setattr(
+        inference,
+        "compute_display_scale",
+        lambda width, height, reserved_height=0: 10.0,
+    )
+
+    displayed = inference.display_frame(image)
+
+    assert displayed.shape == (280, 280, 3)
+
+
+def test_display_frame_keeps_original_when_scale_is_one(monkeypatch):
+    image = np.zeros((48, 64, 3), dtype=np.uint8)
+    monkeypatch.setattr(
+        inference,
+        "compute_display_scale",
+        lambda width, height, reserved_height=0: 1.0,
+    )
+
+    assert inference.display_frame(image) is image
+
+
 def test_run_missing_image_does_not_open_video_capture(
     tmp_path, monkeypatch, capsys
 ):

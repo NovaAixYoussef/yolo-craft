@@ -174,14 +174,14 @@ def screen_workspace():
     return _SCREEN_SIZE
 
 
-def compute_display_scale(width, height):
+def compute_display_scale(width, height, reserved_height=HEADER_HEIGHT):
     if width <= 0 or height <= 0:
         return 1.0
     screen_width, screen_height = screen_workspace()
     available_width = max(640, screen_width - 2 * SCREEN_MARGIN)
     available_height = max(
         400,
-        screen_height - HEADER_HEIGHT - 2 * SCREEN_MARGIN,
+        screen_height - reserved_height - 2 * SCREEN_MARGIN,
     )
     max_width = min(MAX_DISPLAY_WIDTH, available_width)
     max_height = min(MAX_DISPLAY_HEIGHT, available_height)
