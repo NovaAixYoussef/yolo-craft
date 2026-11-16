@@ -12,6 +12,8 @@ from .common import (
     PROCESSED_DIR,
     RAW_DIR,
     collect_images,
+    read_image,
+    write_image,
 )
 
 BOX_COLORS = [
@@ -143,30 +145,6 @@ def split_dataset(
         f"{len(val_images)} validation images."
     )
     return len(train_images), len(val_images)
-
-
-def read_image(path):
-    try:
-        data = np.fromfile(str(path), dtype=np.uint8)
-        if data.size == 0:
-            return None
-        return cv2.imdecode(data, cv2.IMREAD_COLOR)
-    except (OSError, ValueError):
-        return None
-
-
-def write_image(path, image):
-    path = Path(path)
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        suffix = path.suffix or ".png"
-        success, encoded = cv2.imencode(suffix, image)
-        if not success:
-            return False
-        encoded.tofile(str(path))
-        return True
-    except (OSError, ValueError, cv2.error):
-        return False
 
 
 def compute_display_scale(width, height):

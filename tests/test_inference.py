@@ -204,3 +204,102 @@ def test_run_image_folder_headless(tmp_path, monkeypatch):
     assert len(payload["frames"]) == 2
     assert payload["frames"][0]["source"] == "frame_0.jpg"
     assert payload["frames"][0]["detections"][0]["class"] == "Parfum"
+
+
+def test_run_single_image_uses_image_reader(tmp_path, monkeypatch):
+    image_path = tmp_path / "photo.png"
+    image = np.zeros((48, 64, 3), dtype=np.uint8)
+    image[:, :] = (20, 40, 60)
+    assert cv2.imwrite(str(image_path), image)
+
+    weights = tmp_path / "best.pt"
+    weights.write_bytes(b"weights")
+    created = {}
+
+    class FakeModel:
+        def __init__(self, source):
+            created["model"] = self
+            created["source"] = source
+            self.names = {0: "Parfum"}
+            self.calls = []
+            self.results = []
+
+        def predict(self, frame, **kwargs):
+            self.calls.append(kwargs)
+            result = FakeResult()
+            self.results.append(result)
+            return [result]
+
+    def fail_video_capture(*args, **kwargs):
+        raise AssertionError("VideoCapture must not be used for image sources")
+
+    monkeypatch.setattr(inference, "YOLO", FakeModel)
+    monkeypatch.setattr(inference, "ensure_runtime_dirs", lambda: None)
+    monkeypatch.setattr(inference.cv2, "VideoCapture", fail_video_capture)
+
+    args = build_parser().parse_args(
+        [
+            "test",
+            "--weights",
+            str(weights),
+            "--source",
+            str(image_path),
+            "--save",
+            str(tmp_path / "annotated.jpg"),
+            "--save-txt",
+            str(tmp_path / "labels"),
+            "--save-json",
+            str(tmp_path / "detections"),
+            "--classes",
+            "Parfum",
+            "--device",
+            "cpu",
+            "--no-display",
+        ]
+    )
+
+    assert inference.run(args) == 0
+    model = created["model"]
+    assert created["source"] == str(weights)
+    assert len(model.calls) == 1
+    assert model.calls[0]["classes"] == [0]
+    assert model.calls[0]["device"] == "cpu"
+    assert (tmp_path / "annotated.jpg").exists()
+    assert (tmp_path / "labels" / "photo.txt").read_text(
+        encoding="utf-8"
+    ).startswith("0 0.250000")
+
+    payload = json.loads(
+        (tmp_path / "detections.json").read_text(encoding="utf-8")
+    )
+    assert len(payload["frames"]) == 1
+    assert payload["frames"][0]["source"] == "photo.png"
+    assert payload["frames"][0]["detections"][0]["class"] == "Parfum"
+
+
+def test_run_missing_image_does_not_open_video_capture(
+    tmp_path, monkeypatch, capsys
+):
+    weights = tmp_path / "best.pt"
+    weights.write_bytes(b"weights")
+
+    def fail_video_capture(*args, **kwargs):
+        raise AssertionError("VideoCapture must not be used for image sources")
+
+    monkeypatch.setattr(inference, "ensure_runtime_dirs", lambda: None)
+    monkeypatch.setattr(inference.cv2, "VideoCapture", fail_video_capture)
+
+    args = build_parser().parse_args(
+        [
+            "test",
+            "--weights",
+            str(weights),
+            "--source",
+            str(tmp_path / "missing.png"),
+            "--no-display",
+        ]
+    )
+
+    assert inference.run(args) == 1
+    output = capsys.readouterr().out.lower()
+    assert "image not found" in output

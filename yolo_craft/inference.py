@@ -16,9 +16,35 @@ from .common import (
     is_stream,
     is_video_file,
     parse_source,
+    read_image,
     resolve_existing,
     source_label,
+    write_image,
 )
+
+
+class ImageCapture:
+    def __init__(self, path):
+        self.frame = read_image(path)
+        self.consumed = False
+
+    def isOpened(self):
+        return self.frame is not None
+
+    def read(self):
+        if self.frame is None or self.consumed:
+            return False, None
+        self.consumed = True
+        return True, self.frame
+
+    def set(self, prop, value):
+        return False
+
+    def get(self, prop):
+        return 0.0
+
+    def release(self):
+        return None
 
 
 def sequence_values(value):
@@ -321,6 +347,15 @@ def run(args):
     source_path = Path(source) if isinstance(source, str) else None
     folder_source = bool(source_path and source_path.is_dir())
     image_source = is_image_file(source)
+    image_suffix = bool(
+        source_path
+        and not folder_source
+        and not is_stream(source)
+        and source_path.suffix.lower() in IMAGE_SUFFIXES
+    )
+    if image_suffix and not image_source:
+        print(f"Error: image not found or unreadable: '{source_path}'.")
+        return 1
     images = []
     if folder_source:
         images = collect_images(source_path)
@@ -371,7 +406,12 @@ def run(args):
         json_path.parent.mkdir(parents=True, exist_ok=True)
 
     capture = None
-    if not folder_source:
+    if image_source:
+        capture = ImageCapture(source_path)
+        if not capture.isOpened():
+            print(f"Error: could not read image '{source_path}'.")
+            return 1
+    elif not folder_source:
         capture = cv2.VideoCapture(source)
         if not capture.isOpened():
             print(f"Error: could not open source '{source_label(source)}'.")
@@ -393,7 +433,7 @@ def run(args):
                 if args.max_frames > 0 and frame_index >= args.max_frames:
                     break
                 frame_index += 1
-                frame = cv2.imread(str(image_path))
+                frame = read_image(image_path)
                 if frame is None:
                     print(f"Skipping unreadable image: {image_path.name}")
                     continue
@@ -410,7 +450,7 @@ def run(args):
                         folder_save_dir
                         / f"{image_path.stem}_pred{image_path.suffix.lower()}"
                     )
-                    if not cv2.imwrite(str(target), annotated):
+                    if not write_image(target, annotated):
                         print(f"Error: could not write image '{target}'.")
 
                 if args.save_txt:
@@ -468,7 +508,7 @@ def run(args):
 
                 if save_path is not None:
                     if save_image:
-                        if not cv2.imwrite(str(save_path), annotated):
+                        if not write_image(save_path, annotated):
                             print(f"Error: could not write image '{save_path}'.")
                             save_path = None
                     else:

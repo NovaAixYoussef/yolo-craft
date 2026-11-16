@@ -1,6 +1,8 @@
 import re
 from pathlib import Path
 
+import cv2
+import numpy as np
 import yaml
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
@@ -57,6 +59,30 @@ def collect_images(folder):
         for path in folder.iterdir()
         if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES
     )
+
+
+def read_image(path):
+    try:
+        data = np.fromfile(str(path), dtype=np.uint8)
+        if data.size == 0:
+            return None
+        return cv2.imdecode(data, cv2.IMREAD_COLOR)
+    except (OSError, ValueError):
+        return None
+
+
+def write_image(path, image):
+    path = Path(path)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        suffix = path.suffix or ".png"
+        success, encoded = cv2.imencode(suffix, image)
+        if not success:
+            return False
+        encoded.tofile(str(path))
+        return True
+    except (OSError, ValueError, cv2.error):
+        return False
 
 
 def next_capture_path(folder, prefix, suffix=".jpg"):
