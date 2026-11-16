@@ -2,6 +2,7 @@ import random
 from pathlib import Path
 
 import cv2
+import numpy as np
 import yaml
 
 from .common import (
@@ -27,6 +28,15 @@ HEADER_COLOR = (15, 17, 21)
 TEXT_COLOR = (245, 247, 250)
 MUTED_COLOR = (154, 164, 178)
 ACCENT_COLOR = (11, 158, 245)
+CURSOR_COLOR = (255, 255, 255)
+HEADER_HEIGHT = 88
+HEADER_MIN_WIDTH = 720
+MAX_DISPLAY_WIDTH = 1280
+MAX_DISPLAY_HEIGHT = 620
+MAX_UPSCALE = 12.0
+TARGET_DISPLAY_WIDTH = 720.0
+TARGET_DISPLAY_HEIGHT = 720.0
+MIN_BOX_SIZE = 5
 
 
 def parse_class_override(value):
@@ -45,7 +55,7 @@ def load_classes(data_path, override=None):
     if data_path.exists():
         try:
             payload = yaml.safe_load(data_path.read_text(encoding="utf-8")) or {}
-        except yaml.YAMLError:
+        except (yaml.YAMLError, OSError):
             payload = {}
         names = payload.get("names")
         if isinstance(names, dict):
@@ -135,16 +145,91 @@ def split_dataset(
     return len(train_images), len(val_images)
 
 
+def read_image(path):
+    try:
+        data = np.fromfile(str(path), dtype=np.uint8)
+        if data.size == 0:
+            return None
+        return cv2.imdecode(data, cv2.IMREAD_COLOR)
+    except (OSError, ValueError):
+        return None
+
+
+def write_image(path, image):
+    path = Path(path)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        suffix = path.suffix or ".png"
+        success, encoded = cv2.imencode(suffix, image)
+        if not success:
+            return False
+        encoded.tofile(str(path))
+        return True
+    except (OSError, ValueError, cv2.error):
+        return False
+
+
+def compute_display_scale(width, height):
+    if width <= 0 or height <= 0:
+        return 1.0
+    downscale = min(
+        MAX_DISPLAY_WIDTH / width,
+        MAX_DISPLAY_HEIGHT / height,
+        1.0,
+    )
+    upscale = min(
+        MAX_UPSCALE,
+        TARGET_DISPLAY_WIDTH / width,
+        TARGET_DISPLAY_HEIGHT / height,
+    )
+    return max(downscale, upscale)
+
+
+def display_to_image(x, y, scale, offset_y, image_width, image_height):
+    if scale <= 0 or image_width <= 0 or image_height <= 0:
+        return None
+    image_y = y - offset_y
+    if x < 0 or image_y < 0:
+        return None
+    if x >= image_width * scale or image_y >= image_height * scale:
+        return None
+    return int(x / scale), int(image_y / scale)
+
+
+def clamp_display_to_image(x, y, scale, offset_y, image_width, image_height):
+    if scale <= 0 or image_width <= 0 or image_height <= 0:
+        return None
+    image_x = int(x / scale)
+    image_y = int((y - offset_y) / scale)
+    return (
+        max(0, min(image_width - 1, image_x)),
+        max(0, min(image_height - 1, image_y)),
+    )
+
+
 def class_color(class_id, classes):
     keys = list(classes.keys())
     index = keys.index(class_id) if class_id in keys else 0
     return BOX_COLORS[index % len(BOX_COLORS)]
 
 
-def draw_box(image, box, classes):
+def draw_box(image, box, classes, scale=1.0, offset_y=0):
     x1, y1, x2, y2, class_id = box
+    image_height, image_width = image.shape[:2]
     color = class_color(class_id, classes)
-    cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
+    display_x1 = max(0, min(image_width - 1, int(round(x1 * scale))))
+    display_y1 = max(0, min(image_height - 1, offset_y + int(round(y1 * scale))))
+    display_x2 = max(0, min(image_width - 1, int(round(x2 * scale))))
+    display_y2 = max(0, min(image_height - 1, offset_y + int(round(y2 * scale))))
+    if display_x2 <= display_x1 or display_y2 <= display_y1:
+        return
+    cv2.rectangle(
+        image,
+        (display_x1, display_y1),
+        (display_x2, display_y2),
+        color,
+        2,
+    )
     name = classes.get(class_id, str(class_id))
     label = f"{name} [{class_id}]"
     font_scale = 0.48
@@ -152,24 +237,142 @@ def draw_box(image, box, classes):
     size, baseline = cv2.getTextSize(
         label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness
     )
-    top = max(0, y1 - size[1] - baseline - 6)
+    top = max(offset_y, display_y1 - size[1] - baseline - 6)
     cv2.rectangle(
         image,
-        (x1, top),
-        (x1 + size[0] + 10, top + size[1] + baseline + 6),
+        (display_x1, top),
+        (display_x1 + size[0] + 10, top + size[1] + baseline + 6),
         color,
         -1,
     )
     cv2.putText(
         image,
         label,
-        (x1 + 5, top + size[1] + 2),
+        (display_x1 + 5, top + size[1] + 2),
         cv2.FONT_HERSHEY_SIMPLEX,
         font_scale,
         (10, 12, 16),
         thickness,
         cv2.LINE_AA,
     )
+
+
+def render_frame(
+    image,
+    boxes,
+    classes,
+    selected_id,
+    index,
+    total,
+    preview=None,
+    cursor=None,
+):
+    height, width = image.shape[:2]
+    scale = compute_display_scale(width, height)
+    display_width = max(1, int(round(width * scale)))
+    display_height = max(1, int(round(height * scale)))
+    interpolation = cv2.INTER_AREA if scale < 1.0 else cv2.INTER_LINEAR
+    resized = cv2.resize(
+        image,
+        (display_width, display_height),
+        interpolation=interpolation,
+    )
+    canvas_width = max(display_width, HEADER_MIN_WIDTH)
+    canvas = np.zeros(
+        (HEADER_HEIGHT + display_height, canvas_width, 3),
+        dtype=np.uint8,
+    )
+    canvas[HEADER_HEIGHT : HEADER_HEIGHT + display_height, :display_width] = resized
+
+    for box in boxes:
+        draw_box(canvas, box, classes, scale=scale, offset_y=HEADER_HEIGHT)
+
+    if preview is not None:
+        x1, y1, x2, y2 = preview
+        color = class_color(selected_id, classes)
+        display_x1 = max(0, min(display_width - 1, int(round(x1 * scale))))
+        display_y1 = max(
+            HEADER_HEIGHT,
+            min(HEADER_HEIGHT + display_height - 1, HEADER_HEIGHT + int(round(y1 * scale))),
+        )
+        display_x2 = max(0, min(display_width - 1, int(round(x2 * scale))))
+        display_y2 = max(
+            HEADER_HEIGHT,
+            min(HEADER_HEIGHT + display_height - 1, HEADER_HEIGHT + int(round(y2 * scale))),
+        )
+        if display_x2 > display_x1 and display_y2 > display_y1:
+            cv2.rectangle(
+                canvas,
+                (display_x1, display_y1),
+                (display_x2, display_y2),
+                color,
+                2,
+            )
+
+    if cursor is not None:
+        cursor_x = int(round(cursor[0] * scale))
+        cursor_y = HEADER_HEIGHT + int(round(cursor[1] * scale))
+        if 0 <= cursor_x < display_width and HEADER_HEIGHT <= cursor_y < canvas.shape[0]:
+            cv2.line(
+                canvas,
+                (max(0, cursor_x - 8), cursor_y),
+                (min(canvas_width - 1, cursor_x + 8), cursor_y),
+                CURSOR_COLOR,
+                1,
+                cv2.LINE_AA,
+            )
+            cv2.line(
+                canvas,
+                (cursor_x, max(HEADER_HEIGHT, cursor_y - 8)),
+                (cursor_x, min(canvas.shape[0] - 1, cursor_y + 8)),
+                CURSOR_COLOR,
+                1,
+                cv2.LINE_AA,
+            )
+
+    cv2.rectangle(
+        canvas,
+        (0, 0),
+        (canvas_width, HEADER_HEIGHT),
+        HEADER_COLOR,
+        -1,
+    )
+    progress = int((index / total) * 100) if total else 0
+    cv2.putText(
+        canvas,
+        f"Image {index + 1}/{total}  {progress}%  Boxes {len(boxes)}",
+        (12, 24),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.6,
+        TEXT_COLOR,
+        1,
+        cv2.LINE_AA,
+    )
+    class_ids = sorted(classes) if classes else []
+    selected_index = class_ids.index(selected_id) if selected_id in class_ids else 0
+    class_name = classes.get(selected_id, str(selected_id))
+    cv2.putText(
+        canvas,
+        f"[l] Class {selected_index + 1}/{len(class_ids)}: "
+        f"{class_name} [{selected_id}]",
+        (12, 51),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.62,
+        ACCENT_COLOR,
+        2,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        canvas,
+        "[s] Save  [b] Background  [c] Undo  [n] Skip  [q] Quit",
+        (12, 75),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5,
+        MUTED_COLOR,
+        1,
+        cv2.LINE_AA,
+    )
+    return canvas, scale
 
 
 def label_images(
@@ -191,106 +394,135 @@ def label_images(
         print(f"No images found in '{source_dir}'.")
         return {"saved": 0, "background": 0, "skipped": 0}
 
-    class_ids = list(classes.keys())
+    if not classes:
+        classes = {0: "object"}
+
+    class_ids = sorted(classes)
     selected_index = 0
     selected_id = class_ids[selected_index]
     current_boxes = []
     drawing = False
-    ix = iy = fx = fy = -1
+    start = None
+    end = None
+    cursor = None
+    start_display = None
+    scale = 1.0
+    width = 0
+    height = 0
+
+    def mouse_callback(event, x, y, flags, param):
+        nonlocal drawing, start, end, cursor, start_display
+        point = display_to_image(x, y, scale, HEADER_HEIGHT, width, height)
+        if event == cv2.EVENT_LBUTTONDOWN:
+            if point is None:
+                return
+            drawing = True
+            start = point
+            end = point
+            cursor = point
+            start_display = (x, y)
+        elif event == cv2.EVENT_MOUSEMOVE:
+            if point is not None:
+                cursor = point
+                if drawing:
+                    end = point
+            elif drawing:
+                point = clamp_display_to_image(
+                    x, y, scale, HEADER_HEIGHT, width, height
+                )
+                if point is not None:
+                    end = point
+        elif event == cv2.EVENT_LBUTTONUP:
+            if point is None:
+                point = clamp_display_to_image(
+                    x, y, scale, HEADER_HEIGHT, width, height
+                )
+            if point is not None:
+                end = point
+                cursor = point
+            if (
+                not drawing
+                or start is None
+                or end is None
+                or start_display is None
+            ):
+                drawing = False
+                return
+            if (
+                abs(x - start_display[0]) <= MIN_BOX_SIZE
+                or abs(y - start_display[1]) <= MIN_BOX_SIZE
+            ):
+                drawing = False
+                start = None
+                end = None
+                start_display = None
+                return
+            x1, x2 = sorted((start[0], end[0]))
+            y1, y2 = sorted((start[1], end[1]))
+            x1 = max(0, min(width - 1, x1))
+            x2 = max(0, min(width - 1, x2))
+            y1 = max(0, min(height - 1, y1))
+            y2 = max(0, min(height - 1, y2))
+            if x2 > x1 and y2 > y1:
+                current_boxes.append((x1, y1, x2, y2, selected_id))
+            drawing = False
+            start = None
+            end = None
+            start_display = None
+
+    try:
+        cv2.namedWindow(window)
+        cv2.setMouseCallback(window, mouse_callback)
+    except cv2.error as exc:
+        print(f"Error: could not open labeling window: {exc}")
+        return {"saved": 0, "background": 0, "skipped": 0}
+
     saved = 0
     background = 0
     skipped = 0
-
-    def mouse_callback(event, x, y, flags, param):
-        nonlocal drawing, ix, iy, fx, fy
-        if event == cv2.EVENT_LBUTTONDOWN:
-            drawing = True
-            ix, iy = x, y
-            fx, fy = x, y
-        elif event == cv2.EVENT_MOUSEMOVE and drawing:
-            fx, fy = x, y
-        elif event == cv2.EVENT_LBUTTONUP:
-            drawing = False
-            fx, fy = x, y
-            if abs(fx - ix) > 5 and abs(fy - iy) > 5:
-                x1, x2 = sorted((ix, fx))
-                y1, y2 = sorted((iy, fy))
-                current_boxes.append((x1, y1, x2, y2, selected_id))
-
-    cv2.namedWindow(window)
-    cv2.setMouseCallback(window, mouse_callback)
-
     quit_requested = False
+
     for index, image_path in enumerate(images):
-        image = cv2.imread(str(image_path))
+        image = read_image(image_path)
         if image is None:
             print(f"Skipping unreadable image: {image_path.name}")
             continue
 
         height, width = image.shape[:2]
+        scale = compute_display_scale(width, height)
         current_boxes = []
+        drawing = False
+        start = None
+        end = None
+        cursor = None
+        start_display = None
         break_loop = False
 
         while True:
-            canvas = image.copy()
-            for box in current_boxes:
-                draw_box(canvas, box, classes)
-
-            if drawing:
-                x1, x2 = sorted((ix, fx))
-                y1, y2 = sorted((iy, fy))
-                color = class_color(selected_id, classes)
-                cv2.rectangle(canvas, (x1, y1), (x2, y2), color, 1)
-
-            header_height = 88
-            cv2.rectangle(
-                canvas,
-                (0, 0),
-                (canvas.shape[1], header_height),
-                HEADER_COLOR,
-                -1,
+            preview = None
+            if drawing and start is not None and end is not None:
+                preview = (start[0], start[1], end[0], end[1])
+            canvas, _ = render_frame(
+                image,
+                current_boxes,
+                classes,
+                selected_id,
+                index,
+                len(images),
+                preview=preview,
+                cursor=cursor,
             )
-            progress = int((index / len(images)) * 100)
-            cv2.putText(
-                canvas,
-                f"Image {index + 1}/{len(images)}  {progress}%  "
-                f"Boxes {len(current_boxes)}",
-                (12, 24),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                TEXT_COLOR,
-                1,
-                cv2.LINE_AA,
-            )
-            class_name = classes.get(selected_id, str(selected_id))
-            cv2.putText(
-                canvas,
-                f"[l] Class {selected_index + 1}/{len(class_ids)}: "
-                f"{class_name} [{selected_id}]",
-                (12, 51),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.62,
-                ACCENT_COLOR,
-                2,
-                cv2.LINE_AA,
-            )
-            cv2.putText(
-                canvas,
-                "[s] Save  [b] Background  [c] Undo  [n] Skip  [q] Quit",
-                (12, 75),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                MUTED_COLOR,
-                1,
-                cv2.LINE_AA,
-            )
-
-            cv2.imshow(window, canvas)
-            key = cv2.waitKey(20) & 0xFF
-
-            if key == ord("q"):
-                break_loop = True
+            try:
+                cv2.imshow(window, canvas)
+                key = cv2.waitKey(20) & 0xFF
+            except cv2.error:
                 quit_requested = True
+                break_loop = True
+                break
+
+            if key == ord("q") or key == 27:
+                quit_requested = True
+                break_loop = True
                 break
             if key == ord("c") and current_boxes:
                 current_boxes.pop()
@@ -304,7 +536,9 @@ def label_images(
                     selected_id = class_ids[selected_index]
             if key == ord("s"):
                 destination_image = processed_dir / image_path.name
-                cv2.imwrite(str(destination_image), image)
+                if not write_image(destination_image, image):
+                    print(f"Error: could not write image '{destination_image}'.")
+                    continue
                 lines = []
                 for x1, y1, x2, y2, class_id in current_boxes:
                     center_x = ((x1 + x2) / 2.0) / width
@@ -329,8 +563,14 @@ def label_images(
                     image_path.unlink(missing_ok=True)
                 break
             if key == ord("b"):
-                cv2.imwrite(str(background_dir / image_path.name), image)
-                cv2.imwrite(str(processed_dir / image_path.name), image)
+                background_image = background_dir / image_path.name
+                destination_image = processed_dir / image_path.name
+                if not write_image(background_image, image):
+                    print(f"Error: could not write image '{background_image}'.")
+                    continue
+                if not write_image(destination_image, image):
+                    print(f"Error: could not write image '{destination_image}'.")
+                    continue
                 label_path = processed_dir / f"{image_path.stem}.txt"
                 label_path.write_text("", encoding="utf-8")
                 background += 1
@@ -342,9 +582,13 @@ def label_images(
                 skipped += 1
                 print(f"Skipped {image_path.name}.")
                 break
-            if cv2.getWindowProperty(window, cv2.WND_PROP_VISIBLE) < 1:
-                break_loop = True
+            try:
+                visible = cv2.getWindowProperty(window, cv2.WND_PROP_VISIBLE)
+            except cv2.error:
+                visible = 1.0
+            if visible < 1:
                 quit_requested = True
+                break_loop = True
                 break
 
         if break_loop:
@@ -399,6 +643,7 @@ def run(args):
         write_data_yaml(data_path, Path(args.dataset), classes)
 
     print("Classes: " + ", ".join(f"{key}={value}" for key, value in classes.items()))
+    print("Controls: [s] Save  [b] Background  [c] Undo  [n] Skip  [l] Class  [q] Quit")
     label_images(
         source_dir=args.source,
         processed_dir=args.processed,
