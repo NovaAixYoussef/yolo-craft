@@ -1,4 +1,5 @@
 import random
+import sys
 from pathlib import Path
 
 import cv2
@@ -33,12 +34,14 @@ ACCENT_COLOR = (11, 158, 245)
 CURSOR_COLOR = (255, 255, 255)
 HEADER_HEIGHT = 88
 HEADER_MIN_WIDTH = 720
-MAX_DISPLAY_WIDTH = 1280
-MAX_DISPLAY_HEIGHT = 620
-MAX_UPSCALE = 12.0
-TARGET_DISPLAY_WIDTH = 720.0
-TARGET_DISPLAY_HEIGHT = 720.0
+MAX_DISPLAY_WIDTH = 1500
+MAX_DISPLAY_HEIGHT = 950
+MAX_UPSCALE = 40.0
+TARGET_DISPLAY_WIDTH = 1100.0
+TARGET_DISPLAY_HEIGHT = 820.0
+SCREEN_MARGIN = 20
 MIN_BOX_SIZE = 5
+_SCREEN_SIZE = None
 
 
 def parse_class_override(value):
@@ -147,18 +150,48 @@ def split_dataset(
     return len(train_images), len(val_images)
 
 
+def screen_workspace():
+    global _SCREEN_SIZE
+    if _SCREEN_SIZE is not None:
+        return _SCREEN_SIZE
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            rect = wintypes.RECT()
+            success = ctypes.windll.user32.SystemParametersInfoW(
+                0x0030, 0, ctypes.byref(rect), 0
+            )
+            width = rect.right - rect.left
+            height = rect.bottom - rect.top
+            if success and width > 0 and height > 0:
+                _SCREEN_SIZE = (width, height)
+                return _SCREEN_SIZE
+        except Exception:
+            pass
+    _SCREEN_SIZE = (1280, 800)
+    return _SCREEN_SIZE
+
+
 def compute_display_scale(width, height):
     if width <= 0 or height <= 0:
         return 1.0
-    downscale = min(
-        MAX_DISPLAY_WIDTH / width,
-        MAX_DISPLAY_HEIGHT / height,
-        1.0,
+    screen_width, screen_height = screen_workspace()
+    available_width = max(640, screen_width - 2 * SCREEN_MARGIN)
+    available_height = max(
+        400,
+        screen_height - HEADER_HEIGHT - 2 * SCREEN_MARGIN,
     )
+    max_width = min(MAX_DISPLAY_WIDTH, available_width)
+    max_height = min(MAX_DISPLAY_HEIGHT, available_height)
+    target_width = min(TARGET_DISPLAY_WIDTH, max_width)
+    target_height = min(TARGET_DISPLAY_HEIGHT, max_height)
+    downscale = min(max_width / width, max_height / height, 1.0)
     upscale = min(
         MAX_UPSCALE,
-        TARGET_DISPLAY_WIDTH / width,
-        TARGET_DISPLAY_HEIGHT / height,
+        target_width / width,
+        target_height / height,
     )
     return max(downscale, upscale)
 

@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import yaml
 
+from yolo_craft import labeling
 from yolo_craft.labeling import (
     HEADER_HEIGHT,
     HEADER_MIN_WIDTH,
@@ -86,7 +87,8 @@ def test_split_dataset_without_images_returns_zero(tmp_path):
     assert (train_count, val_count) == (0, 0)
 
 
-def test_render_frame_keeps_small_image_below_header():
+def test_render_frame_keeps_small_image_below_header(monkeypatch):
+    monkeypatch.setattr(labeling, "screen_workspace", lambda: (1920, 1080))
     image = np.zeros((28, 28, 3), dtype=np.uint8)
     image[:, :] = (20, 40, 60)
 
@@ -99,7 +101,7 @@ def test_render_frame_keeps_small_image_below_header():
         total=1,
     )
 
-    assert scale > 1
+    assert scale >= 20
     assert canvas.shape[0] == HEADER_HEIGHT + int(round(28 * scale))
     assert canvas.shape[1] >= HEADER_MIN_WIDTH
     assert tuple(canvas[HEADER_HEIGHT + 14, 14]) == (20, 40, 60)
@@ -111,11 +113,20 @@ def test_display_to_image_maps_scaled_coordinates():
     assert display_to_image(28 * 12, HEADER_HEIGHT + 5, 12, HEADER_HEIGHT, 28, 28) is None
 
 
-def test_compute_display_scale_fits_large_images():
+def test_compute_display_scale_fits_large_images(monkeypatch):
+    monkeypatch.setattr(labeling, "screen_workspace", lambda: (1920, 1080))
     scale = compute_display_scale(1920, 1080)
     assert scale < 1
     assert 1920 * scale <= MAX_DISPLAY_WIDTH + 1
     assert 1080 * scale <= MAX_DISPLAY_HEIGHT + 1
+
+
+def test_compute_display_scale_enlarges_small_images(monkeypatch):
+    monkeypatch.setattr(labeling, "screen_workspace", lambda: (1920, 1080))
+    scale = compute_display_scale(28, 28)
+    assert scale >= 20
+    assert 28 * scale >= 560
+    assert 28 * scale <= MAX_DISPLAY_HEIGHT + 1
 
 
 def test_read_and_write_image_with_unicode_path(tmp_path):
@@ -161,6 +172,9 @@ def test_label_images_draws_and_saves_on_small_image(tmp_path, monkeypatch):
     monkeypatch.setattr(cv2, "imshow", fake_imshow)
     monkeypatch.setattr(cv2, "waitKey", fake_wait_key)
     monkeypatch.setattr(cv2, "destroyAllWindows", lambda: None)
+    monkeypatch.setattr(
+        labeling, "compute_display_scale", lambda width, height: 12.0
+    )
 
     stats = label_images(
         source_dir=source,
@@ -258,6 +272,9 @@ def test_label_images_undoes_last_box(tmp_path, monkeypatch):
     monkeypatch.setattr(cv2, "waitKey", fake_wait_key)
     monkeypatch.setattr(cv2, "getWindowProperty", lambda name, prop: 1.0)
     monkeypatch.setattr(cv2, "destroyAllWindows", lambda: None)
+    monkeypatch.setattr(
+        labeling, "compute_display_scale", lambda width, height: 12.0
+    )
 
     stats = label_images(
         source_dir=source,
