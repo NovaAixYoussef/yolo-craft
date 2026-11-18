@@ -47,3 +47,7 @@ runs/
 *.tflite
 *.mlpackage
 *.zip
+
+!demo/model/*.pt
+!demo/runs/
+!demo/runs/**

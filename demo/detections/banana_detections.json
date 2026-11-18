@@ -1,0 +1,33 @@
+{
+  "source": "demo/images/banana_027.jpg",
+  "weights": "demo\\model\\best.pt",
+  "classes": [
+    {
+      "id": 0,
+      "name": "Apple"
+    },
+    {
+      "id": 1,
+      "name": "Banana"
+    }
+  ],
+  "frames": [
+    {
+      "frame": 1,
+      "detections": [
+        {
+          "class_id": 1,
+          "class": "Banana",
+          "confidence": 0.866724,
+          "box": [
+            9.99,
+            6.03,
+            91.04,
+            92.54
+          ]
+        }
+      ],
+      "source": "banana_027.jpg"
+    }
+  ]
+}

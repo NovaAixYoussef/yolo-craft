@@ -1,0 +1,33 @@
+{
+  "source": "demo/images/apple_042.jpg",
+  "weights": "demo\\model\\best.pt",
+  "classes": [
+    {
+      "id": 0,
+      "name": "Apple"
+    },
+    {
+      "id": 1,
+      "name": "Banana"
+    }
+  ],
+  "frames": [
+    {
+      "frame": 1,
+      "detections": [
+        {
+          "class_id": 0,
+          "class": "Apple",
+          "confidence": 0.936516,
+          "box": [
+            1.66,
+            20.71,
+            98.3,
+            96.88
+          ]
+        }
+      ],
+      "source": "apple_042.jpg"
+    }
+  ]
+}
