@@ -1,4 +1,24 @@
 <p align="center">
+  <a href="https://novaaixyoussef.github.io/yolo-craft/demo/app/yolo-craft-pixel-v2.html">
+    <img src="demo/app/preview.png" alt="YOLO CRAFT interactive pixel demo app" width="900">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://novaaixyoussef.github.io/yolo-craft/demo/app/yolo-craft-pixel-v2.html"><strong>Open the interactive pixel demo app</strong></a>
+  &middot;
+  <a href="demo/media/demo.mp4">Full detection video (MP4)</a>
+  &middot;
+  <a href="demo/app/yolo-craft-pixel-v2.html">Source HTML</a>
+</p>
+
+<p align="center">
+  <img src="demo/media/demo.gif" alt="YOLO CRAFT Apple vs Banana detection demo" width="480">
+</p>
+
+---
+
+<p align="center">
   <img src="assets/logo.jpg" alt="YOLO CRAFT logo" width="320">
 </p>
 
@@ -162,7 +182,7 @@ Captured frames go to `data/raw/`.
 ### 2. Label and split the dataset
 
 ```bash
-python -m yolo_craft label --classes "Apple,Banana"
+python -m yolo_craft label --classes "Calculator"
 ```
 
 Existing class names are loaded from `data/dataset/data.yaml`. Pass `--classes` only when defining
@@ -188,7 +208,7 @@ python -m yolo_craft label --train-ratio 0.85 --seed 12
 ### 3. Train
 
 ```bash
-python -m yolo_craft train --epochs 150 --imgsz 640 --batch 8 --device 0
+python -m yolo_craft train --epochs 10 --imgsz 640 --batch 8 --device "cpu"
 ```
 
 Defaults: `models/yolov8n.pt`, `outputs/runs/train/`, cosine learning rate, `close_mosaic=10`,
@@ -213,7 +233,7 @@ If the baseline checkpoint is missing, it is downloaded into `models/` automatic
 
 ```bash
 python -m yolo_craft test --source 0
-python -m yolo_craft test --weights models/yolov8n.pt --conf 0.25 --source 0
+python -m yolo_craft test --weights "C:\Users\youss\Desktop\Yolo Craft\outputs\runs\train\weights\best.pt" --conf 0.25 --source 0
 python -m yolo_craft test --weights models/best.pt --source image.jpg --conf 0.1 --imgsz 1024 --augment
 python -m yolo_craft test --weights models/best.pt --source image.jpg --save outputs/annotated.jpg
 python -m yolo_craft test --source input.mp4 --save outputs/annotated.mp4
