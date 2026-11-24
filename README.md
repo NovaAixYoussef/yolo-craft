@@ -176,7 +176,7 @@ Captured frames go to `data/raw/`.
 ### 2. Label and split the dataset
 
 ```bash
-python -m yolo_craft label --classes "Calculator"
+python -m yolo_craft label --classes "Apple,Banana"
 ```
 
 Existing class names are loaded from `data/dataset/data.yaml`. Pass `--classes` only when defining
@@ -202,7 +202,7 @@ python -m yolo_craft label --train-ratio 0.85 --seed 12
 ### 3. Train
 
 ```bash
-python -m yolo_craft train --epochs 10 --imgsz 640 --batch 8 --device "cpu"
+python -m yolo_craft train --epochs 150 --imgsz 640 --batch 8 --device 0
 ```
 
 Defaults: `models/yolov8n.pt`, `outputs/runs/train/`, cosine learning rate, `close_mosaic=10`,
@@ -227,7 +227,7 @@ If the baseline checkpoint is missing, it is downloaded into `models/` automatic
 
 ```bash
 python -m yolo_craft test --source 0
-python -m yolo_craft test --weights "C:\Users\youss\Desktop\Yolo Craft\outputs\runs\train\weights\best.pt" --conf 0.25 --source 0
+python -m yolo_craft test --weights outputs/runs/train/weights/best.pt --conf 0.25 --source 0
 python -m yolo_craft test --weights models/best.pt --source image.jpg --conf 0.1 --imgsz 1024 --augment
 python -m yolo_craft test --weights models/best.pt --source image.jpg --save outputs/annotated.jpg
 python -m yolo_craft test --source input.mp4 --save outputs/annotated.mp4
@@ -255,11 +255,6 @@ the dataset.
 See exactly how YOLOv8 changes training images before a single epoch runs. The live preview renders
 YOLO-style letterboxing, a four-image mosaic, scale and shift, HSV color jitter, and horizontal flip.
 Boxes are remapped onto the augmented canvas so you can confirm labels stay aligned.
-
-![Augmentation preview with original, mosaic, scale, color, flip and random modes](demo/media/augmentation_preview.png)
-
-The grid above was generated from 58 labeled Calculator images with
-`demo/scripts/make_augmentation_preview.py`.
 
 ```bash
 python -m yolo_craft augment
