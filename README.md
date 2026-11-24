@@ -1,15 +1,15 @@
 <p align="center">
-  <a href="https://novaaixyoussef.github.io/yolo-craft/demo/app/yolo-craft-video.html">
-    <img src="demo/app/video-preview.png" alt="YOLO CRAFT promo video app" width="900">
+  <a href="demo/app/YOLO_CRAFT_Promo_1080p.mp4">
+    <img src="demo/app/promo-poster.jpg" alt="YOLO CRAFT promo video" width="900">
   </a>
 </p>
 
 <p align="center">
-  <a href="https://novaaixyoussef.github.io/yolo-craft/demo/app/yolo-craft-video.html"><strong>Watch the YOLO CRAFT promo video</strong></a>
+  <a href="demo/app/YOLO_CRAFT_Promo_1080p.mp4"><strong>Watch the YOLO CRAFT promo video (MP4)</strong></a>
   &middot;
-  <a href="https://novaaixyoussef.github.io/yolo-craft/demo/app/yolo-craft-pixel-v2.html">Pixel motion graphic app</a>
+  <a href="https://novaaixyoussef.github.io/yolo-craft/demo/app/yolo-craft-video.html">Video player app</a>
   &middot;
-  <a href="demo/media/demo.mp4">Detection demo (MP4)</a>
+  <a href="https://novaaixyoussef.github.io/yolo-craft/demo/app/yolo-craft-pixel-v2.html">Pixel motion graphic</a>
 </p>
 
 <p align="center">
