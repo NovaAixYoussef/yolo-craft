@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YOLO CRAFT - Promo Video</title>
+<style>
+:root{--ink:#1f2f40;--teal:#3f8fae;--bg:#f3f9fc;--accent:#f2b84b}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:#e9eef2;color:var(--ink);font:500 15px/1.5 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;display:flex;flex-direction:column;align-items:center;padding:24px 16px 48px;gap:18px}
+header{text-align:center}
+h1{font-size:clamp(22px,4vw,38px);margin:0;letter-spacing:-.02em}
+p.sub{margin:6px 0 0;color:#425669;font-size:14px}
+.player{width:min(100%,1100px);background:#fff;border:3px solid var(--ink);box-shadow:8px 8px 0 var(--ink);padding:10px}
+.bar{background:var(--teal);color:#fff;padding:8px 12px;margin:-10px -10px 10px;font:700 12px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.08em;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+video{display:block;width:100%;height:auto;background:#000;border:2px solid var(--ink)}
+.meta{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.meta span{border:2px solid var(--ink);background:#fff;padding:5px 10px;font:700 11px ui-monospace,Menlo,Consolas,monospace;box-shadow:3px 3px 0 var(--teal)}
+.links{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+a.btn{border:3px solid var(--ink);background:var(--ink);color:#fff;padding:10px 16px;text-decoration:none;font-weight:700;box-shadow:4px 4px 0 var(--teal)}
+a.btn:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--teal)}
+a.btn.alt{background:#fff;color:var(--ink)}
+footer{color:#425669;font-size:12px;text-align:center}
+</style>
+</head>
+<body>
+<header>
+<h1>YOLO CRAFT - Promo Reel</h1>
+<p class="sub">From hard frames to a better model. Full 1080p walkthrough.</p>
+</header>
+<div class="player">
+<div class="bar"><span>YOLO_CRAFT_Promo_1080p.mp4</span><span>1080p / H.264</span></div>
+<video src="YOLO_CRAFT_Promo_1080p.mp4" poster="promo-poster.jpg" controls autoplay muted loop playsinline></video>
+</div>
+<div class="meta">
+<span>1920 x 1080</span><span>68 seconds</span><span>30 fps</span><span>H.264</span>
+</div>
+<div class="links">
+<a class="btn" href="https://github.com/NovaAixYoussef/yolo-craft">GitHub repo</a>
+<a class="btn alt" href="yolo-craft-pixel-v2.html">Pixel motion graphic</a>
+<a class="btn alt" href="../media/demo.mp4">Detection demo</a>
+</div>
+<footer>YOLO CRAFT - scriptable active learning for YOLO object detection</footer>
+</body>
+</html>

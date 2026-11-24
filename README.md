@@ -1,15 +1,15 @@
 <p align="center">
-  <a href="https://novaaixyoussef.github.io/yolo-craft/demo/app/yolo-craft-pixel-v2.html">
-    <img src="demo/app/preview.png" alt="YOLO CRAFT interactive pixel demo app" width="900">
+  <a href="https://novaaixyoussef.github.io/yolo-craft/demo/app/yolo-craft-video.html">
+    <img src="demo/app/video-preview.png" alt="YOLO CRAFT promo video app" width="900">
   </a>
 </p>
 
 <p align="center">
-  <a href="https://novaaixyoussef.github.io/yolo-craft/demo/app/yolo-craft-pixel-v2.html"><strong>Open the interactive pixel demo app</strong></a>
+  <a href="https://novaaixyoussef.github.io/yolo-craft/demo/app/yolo-craft-video.html"><strong>Watch the YOLO CRAFT promo video</strong></a>
   &middot;
-  <a href="demo/media/demo.mp4">Full detection video (MP4)</a>
+  <a href="https://novaaixyoussef.github.io/yolo-craft/demo/app/yolo-craft-pixel-v2.html">Pixel motion graphic app</a>
   &middot;
-  <a href="demo/app/yolo-craft-pixel-v2.html">Source HTML</a>
+  <a href="demo/media/demo.mp4">Detection demo (MP4)</a>
 </p>
 
 <p align="center">
@@ -258,6 +258,15 @@ the dataset.
 
 ## Augmentation preview
 
+See exactly how YOLOv8 changes training images before a single epoch runs. The live preview renders
+YOLO-style letterboxing, a four-image mosaic, scale and shift, HSV color jitter, and horizontal flip.
+Boxes are remapped onto the augmented canvas so you can confirm labels stay aligned.
+
+![Augmentation preview with original, mosaic, scale, color, flip and random modes](demo/media/augmentation_preview.png)
+
+The grid above was generated from 58 labeled Calculator images with
+`demo/scripts/make_augmentation_preview.py`.
+
 ```bash
 python -m yolo_craft augment
 ```
@@ -343,7 +352,10 @@ yolo-craft/
 +-- .github/workflows/ci.yml
 +-- assets/               logo and project graphics
 +-- data/                 ignored runtime data
-+-- demo/                 complete Apple vs Banana demo
++-- demo/                 complete Apple vs Banana demo and web apps
+|   +-- app/              promo video player and pixel motion graphic
+|   +-- media/            GIF, MP4 and augmentation preview
+|   +-- scripts/          media and preview generators
 +-- models/               baseline and fine-tuned checkpoints
 +-- outputs/              ignored runs, exports, benchmarks, reports
 +-- tests/
@@ -378,7 +390,7 @@ contents are ignored.
 
 ```bash
 python -m pytest
-python -m compileall -q yolo_craft tests
+python -m compileall -q yolo_craft tests demo\scripts
 ```
 
 The suite covers source parsing, capture filenames, label splitting, dataset YAML generation,
